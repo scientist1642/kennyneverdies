@@ -13,8 +13,7 @@ bf_num_count =  1000000
 test_num_count = 100000000
 
 hash_count = int(math.log(2) * bitsize / bf_num_count)
-hash_count = 8
-print hash_count
+print 'number of hash functions to use:', hash_count
 
 bf = BloomFilter(bitsize, hash_count) 
 
