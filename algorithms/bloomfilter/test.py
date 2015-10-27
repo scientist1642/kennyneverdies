@@ -12,7 +12,8 @@ bitsize = 16000000
 bf_num_count =  1000000
 test_num_count = 100000000
 
-hash_count = int(math.log(2) * test_num_count / bitsize)
+hash_count = int(math.log(2) * bitsize / bf_num_count)
+hash_count = 8
 print hash_count
 
 bf = BloomFilter(bitsize, hash_count) 
@@ -31,3 +32,14 @@ for _ in xrange(test_num_count):
 
 print "false alarms ", false_alarms 
 print "ratio",  false_alarms / float(test_num_count)
+# prints 
+# 11 - optiomal hash functions
+# false alarms  46017
+# ratio 0.00046017
+
+
+
+# 8 - not optimal
+
+# false alarms  57690
+# ratio 0.0005769
