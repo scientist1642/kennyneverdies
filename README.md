@@ -1,2 +1,2 @@
 # kennyneverdies
-![alt tag](http://ak-hdl.buzzfed.com/static/enhanced/webdr02/2013/8/29/17/enhanced-buzz-19727-1377811943-22.jpg)
+![alt tag](http://s13.postimg.org/le9ro4nxz/12179171_754709744673414_2041714421_n.jpg)
