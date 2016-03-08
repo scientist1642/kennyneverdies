@@ -163,7 +163,25 @@ class Game(object):
 
         return q
 
-             
+    def evaluate_policy_naive(self, pi, nepisodes):
+        ''' evaluate the given policy pi S x S, and return expected reward
+            of the game. It just simulates the game for n time and returns 
+            the mean.
+        '''
+        
+       
+        reward_sum = 0
+        for episode in xrange(nepisodes):
+            state = State()
+            state.pl_score = abs(self.draw_card())
+            state.dl_score = abs(self.draw_card())
+            while not state.terminal:
+                action = pi[state.pl_score, state.dl_score]
+                state, rew = self.step(state, action, debug=False)
+            reward_sum += rew
+
+        return reward_sum / float(nepisodes)
+
 
     def run(self):
         state = State()
