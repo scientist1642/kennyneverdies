@@ -163,6 +163,48 @@ class Game(object):
 
         return q
 
+    def sarsa_lambda_control(self, nepisodes, n0, lmbd, q_star=None, 
+            mse_prog=False):
+        " 
+        returns pair of (q, mse_array)
+        runs sarsa for nepisodes, lmbd - lambda, q_star: policy to calculate
+        mean square error for, if mse_prog is true returns all mse for each 
+        episode, otherwise returns only the last one 
+        "
+        
+        q = np.zeros((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
+        e = np.zeros((22, 22, 2), dtype=float) # eligibility traces
+        cnt = np.ones((22, 22, 2)) # count for each pair, ones to avoid 0 div
+        for k in xrange(nepisodes):
+            # sample episode using updated policy
+            s = State()
+            s.pl_score = abs(self.draw_card())
+            s.dl_score = abs(self.draw_card())
+            
+            e.fill(0)
+            a = np.random.randint(2) # maybe should be changed to e-greedy
+            while not s.terminal:
+                # with ep probability we choose random action
+                #import ipdb; ipdb.set_trace()
+                r, s_prime = self.step(state, action)
+
+                num_of_visits = sum(cnt[s_prime.pl_score, s_prime.dl_score, :])
+                ep = float(n0) / (n0 + num_of_visits)
+
+                if np.random.binomial(1, ep):
+                    a_prime = np.random.choice(q.shape[2]) # random action
+                else:
+                    a_prime = np.argmax(q[s_prime.pl_score, s_prime.dl_score])
+                
+                delta = r + lmbd * q(s_prime, a_prime)
+                cnt[state.pl_score, state.dl_score, a] += 1
+                
+                nstate, rew = self.step(state, action)
+
+                episode.append((state, action, rew))
+                state = nstate
+
+
     def evaluate_policy_naive(self, pi, nepisodes):
         ''' evaluate the given policy pi S x S, and return expected reward
             of the game. It just simulates the game for n time and returns 
