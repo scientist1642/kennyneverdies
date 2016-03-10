@@ -162,47 +162,68 @@ class Game(object):
                 q[x, y, act] += alpha * (frew - q[x, y, act])
 
         return q
+    
+    def e_greedy_act(self, s, cnt, n0, q):
+        num_of_visits = sum(cnt[s.pl_score, s.dl_score, :])
+        ep = float(n0) / (n0 + num_of_visits)
+        if np.random.binomial(1, ep):
+            return np.random.choice(q.shape[2]) # random action
+        else:
+            return np.argmax(q[s.pl_score, s.dl_score])
+    
+    def mse_error(self, a, b):
+        # mean squared error of two matricies
+        return ((a - b) ** 2).mean()
 
-    def sarsa_lambda_control(self, nepisodes, n0, lmbd, q_star=None, 
-            mse_prog=False):
-        " 
+    def sarsa_lambda_control(self, nepisodes, n0, lmbd, q_star=None, mse_prog=False):
+        """ 
         returns pair of (q, mse_array)
         runs sarsa for nepisodes, lmbd - lambda, q_star: policy to calculate
         mean square error for, if mse_prog is true returns all mse for each 
         episode, otherwise returns only the last one 
-        "
+        """
         
-        q = np.zeros((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
+        q = np.ones((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
+        q.fill(0.5) # just to increase initial mse error
         e = np.zeros((22, 22, 2), dtype=float) # eligibility traces
         cnt = np.ones((22, 22, 2)) # count for each pair, ones to avoid 0 div
+        mses = [] #mean squeared errors
         for k in xrange(nepisodes):
             # sample episode using updated policy
+            #import ipdb; ipdb.set_trace()
             s = State()
             s.pl_score = abs(self.draw_card())
             s.dl_score = abs(self.draw_card())
-            
+            if mse_prog: # mse progress for each episode
+                mses.append(self.mse_error(q_star, q))
             e.fill(0)
-            a = np.random.randint(2) # maybe should be changed to e-greedy
+            # choose the initial action with e-greedy policy as well
+            a = self.e_greedy_act(s, cnt, n0, q)
             while not s.terminal:
-                # with ep probability we choose random action
-                #import ipdb; ipdb.set_trace()
-                r, s_prime = self.step(state, action)
+                s_prime, r = self.step(s, a)
 
-                num_of_visits = sum(cnt[s_prime.pl_score, s_prime.dl_score, :])
-                ep = float(n0) / (n0 + num_of_visits)
-
-                if np.random.binomial(1, ep):
-                    a_prime = np.random.choice(q.shape[2]) # random action
+                if not s_prime.terminal:
+                    a_prime = self.e_greedy_act(s_prime, cnt, n0, q)
+                    nextq = q[s_prime.pl_score, s_prime.dl_score, a_prime]
                 else:
-                    a_prime = np.argmax(q[s_prime.pl_score, s_prime.dl_score])
-                
-                delta = r + lmbd * q(s_prime, a_prime)
-                cnt[state.pl_score, state.dl_score, a] += 1
-                
-                nstate, rew = self.step(state, action)
+                    # a_prime, nextq not important
+                    a_prime, nextq = 0, 0
 
-                episode.append((state, action, rew))
-                state = nstate
+                delta = r + lmbd * nextq - q[s.pl_score, s.dl_score, a]
+
+                cnt[s.pl_score, s.dl_score, a] += 1
+                e[s.pl_score, s.dl_score, a] += 1
+                q +=  1 / cnt * delta * e
+                e *= lmbd
+
+                s, a = s_prime, a_prime
+
+        if not q_star is None:
+            # we return a pair of action policy and mse_error
+            mses.append(self.mse_error(q_star, q))
+            return (q, mses)
+
+        return q
 
 
     def evaluate_policy_naive(self, pi, nepisodes):
@@ -240,6 +261,7 @@ class Game(object):
             print 'reward is {}'.format(rew)
 
 
-game = Game()
-game.monte_carlo_control(10000, 100)
+#game = Game()
+#game.monte_carlo_control(10000, 100)
 
+#q = game.sarsa_lambda_control(nepisodes=1000000, n0=100, lmbd=1, q_star=None, mse_prog=True)
