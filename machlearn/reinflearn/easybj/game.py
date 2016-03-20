@@ -239,14 +239,17 @@ class Game(object):
         def stateact_to_feature(pl, dl, act):
             pls = [(1, 6), (4, 9), (7, 12), (10, 15), (13, 18), (16, 21)]
             dls = [(1, 4), (4, 7), (7, 10)]
-            ft = np.zeros(10)
+            ft = np.zeros(11)
             for i in range(6):
                 if pls[i][0] <= pl <= pls[i][1]:
                     ft[i] = 1
             for i in range(3):
                 if dls[i][0] <= dl <= dls[i][1]:
                     ft[i + 6] = 1
-            ft[9] = act
+            if act == 0:
+                ft[9] = 1
+            else:
+                ft[10] = 1
             return ft
         
         def get_val(w, pl, dl, act):
@@ -269,7 +272,7 @@ class Game(object):
 
         q = np.ones((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
         #q.fill(0.5) # just to increase initial mse error
-        w = np.zeros(10) # feature weights
+        w = np.zeros(11) # feature weights
         w.fill(0.5) 
         # just to increase initial mse error, correct weights are 
         # close to 0
