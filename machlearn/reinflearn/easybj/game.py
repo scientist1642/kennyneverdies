@@ -209,11 +209,11 @@ class Game(object):
                     # a_prime, nextq not important
                     a_prime, nextq = 0, 0
 
-                delta = r + lmbd * nextq - q[s.pl_score, s.dl_score, a]
+                delta = r + nextq - q[s.pl_score, s.dl_score, a]
 
                 cnt[s.pl_score, s.dl_score, a] += 1
                 e[s.pl_score, s.dl_score, a] += 1
-                q +=  1 / cnt * delta * e
+                q +=  1. / cnt * delta * e
                 e *= lmbd
 
                 s, a = s_prime, a_prime
@@ -225,6 +225,111 @@ class Game(object):
 
         return q
 
+    
+    def sarsa_lambda_control_lfa(self, nepisodes, st_size, exp_rate, lmbd, q_star=None, mse_prog=False):
+        """ 
+        returns pair of (q, mse_array)
+        runs sarsa for nepisodes, lmbd - lambda, q_star: policy to calculate
+        mean square error for, if mse_prog is true returns all mse for each 
+        episode, otherwise returns only the last one 
+        uses linear function approximation
+        er - exploration rate
+        """
+        
+        def stateact_to_feature(pl, dl, act):
+            pls = [(1, 6), (4, 9), (7, 12), (10, 15), (13, 18), (16, 21)]
+            dls = [(1, 4), (4, 7), (7, 10)]
+            ft = np.zeros(10)
+            for i in range(6):
+                if pls[i][0] <= pl <= pls[i][1]:
+                    ft[i] = 1
+            for i in range(3):
+                if dls[i][0] <= dl <= dls[i][1]:
+                    ft[i + 6] = 1
+            ft[9] = act
+            return ft
+        
+        def get_val(w, pl, dl, act):
+            features = stateact_to_feature(pl, dl, act)
+            return np.inner(features, w)
+
+        def calc_mse(w):
+            # TODO remove for loops later
+            ret = 0
+            for ind, v in np.ndenumerate(q_star):
+                ret += (get_val(w, *ind) -  v) ** 2
+            return ret / q_star.size
+
+        def e_greedy(s, w):
+            if np.random.binomial(1, exp_rate):
+                return np.random.choice(2) # random action
+            else:
+                return np.argmax([get_val(w, s.pl_score, s.dl_score, 0), 
+                        get_val(w, s.pl_score, s.dl_score, 1)])
+
+        q = np.ones((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
+        #q.fill(0.5) # just to increase initial mse error
+        w = np.zeros(10) # feature weights
+        w.fill(0.5) 
+        # just to increase initial mse error, correct weights are 
+        # close to 0
+
+        e = np.zeros((22, 22, 2), dtype=float) # eligibility traces
+        #cnt = np.ones((22, 22, 2)) # count for each pair, ones to avoid 0 div
+        mses = [] #mean squeared errors
+        for k in xrange(nepisodes):
+            # sample episode using updated policy
+            #import ipdb; ipdb.set_trace()
+            s = State()
+            s.pl_score = abs(self.draw_card())
+            s.dl_score = abs(self.draw_card())
+            if mse_prog: # mse progress for each episode
+                #import ipdb; ipdb.set_trace() 
+                mses.append(calc_mse(w))
+            #e.fill(0)
+            et = 0
+            # choose the initial action with e-greedy policy as well
+            #a = self.e_greedy_act(s, cnt, n0, q)
+            a = e_greedy(s, w)
+            while not s.terminal:
+                s_prime, r = self.step(s, a)
+
+                if not s_prime.terminal:
+                    #a_prime = self.e_greedy_act(s_prime, cnt, n0, q)
+                    a_prime = e_greedy(s_prime, w)
+                    #nextq = q[s_prime.pl_score, s_prime.dl_score, a_prime]
+                    nextq = get_val(w, s_prime.pl_score, s_prime.dl_score, a_prime)
+                else:
+                    # a_prime, nextq not important
+                    a_prime, nextq = 0, 0
+
+                #delta = r + lmbd * nextq - q[s.pl_score, s.dl_score, a]
+                curq = get_val(w, s.pl_score, s.dl_score, a)
+
+                delta = r + nextq - curq
+                et = lmbd * et + stateact_to_feature(s.pl_score, s.dl_score, a)
+                dew = st_size * delta * et
+                w += dew   # gradient descend 
+                #cnt[s.pl_score, s.dl_score, a] += 1
+                #e[s.pl_score, s.dl_score, a] += 1
+                #q +=  1 / cnt * delta * e
+                #e *= lmbd
+
+                s, a = s_prime, a_prime
+
+        
+        # we can build up q from w just for testing purposes
+        # normally we would only need w
+
+        for ind, v in np.ndenumerate(q):
+            q[ind] = get_val(w, *ind)
+
+        if not q_star is None:
+            # we return a pair of q and mse_error
+            mses.append(calc_mse(w))
+            return (q, mses)
+            
+        return q
 
     def evaluate_policy_naive(self, pi, nepisodes):
         ''' evaluate the given policy pi S x S, and return expected reward
@@ -261,7 +366,8 @@ class Game(object):
             print 'reward is {}'.format(rew)
 
 
-#game = Game()
+game = Game()
 #game.monte_carlo_control(10000, 100)
 
 #q = game.sarsa_lambda_control(nepisodes=1000000, n0=100, lmbd=1, q_star=None, mse_prog=True)
+#q = game.sarsa_lambda_control_lfa(nepisodes=10, st_size=0.01, exp_rate=0.05, lmbd=1)
