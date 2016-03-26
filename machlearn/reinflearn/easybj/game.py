@@ -239,7 +239,19 @@ class Game(object):
         def stateact_to_feature(pl, dl, act):
             pls = [(1, 6), (4, 9), (7, 12), (10, 15), (13, 18), (16, 21)]
             dls = [(1, 4), (4, 7), (7, 10)]
+           
+            # switch to 3x6x2 temp
+            def cont(tpl, el):
+                return tpl[0] <= el <= tpl[1]
+
+            ft = np.zeros((6, 3, 2))
+            for i, x in np.ndenumerate(ft):
+                if cont(pls[i[0]], pl) and cont(dls[i[1]], dl) and i[2] == act:
+                    ft[i] = 1
+            return ft
+            
             ft = np.zeros(11)
+
             for i in range(6):
                 if pls[i][0] <= pl <= pls[i][1]:
                     ft[i] = 1
@@ -254,7 +266,8 @@ class Game(object):
         
         def get_val(w, pl, dl, act):
             features = stateact_to_feature(pl, dl, act)
-            return np.inner(features, w)
+            #return np.inner(features, w) whaaaaaat
+            return np.sum(w * features)
 
         def calc_mse(w):
             # TODO remove for loops later
@@ -272,7 +285,8 @@ class Game(object):
 
         q = np.ones((22, 22, 2))  # 0..21 pl value, 0..21 deal value, 0..1 actions
         #q.fill(0.5) # just to increase initial mse error
-        w = np.zeros(11) # feature weights
+        #w = np.zeros(11)
+        w = np.zeros((6, 3, 2)) # feature weights
         w.fill(0.5) 
         # just to increase initial mse error, correct weights are 
         # close to 0
@@ -283,6 +297,18 @@ class Game(object):
         for k in xrange(nepisodes):
             # sample episode using updated policy
             #import ipdb; ipdb.set_trace()
+
+            # ======================== testing val function =========
+            '''
+            dbg = False
+            if dbg:
+                if k % 10 == 0: 
+                    for ind, v in np.ndenumerate(q):
+                        q[ind] = get_val(w, *ind)
+                    yield q
+            '''
+            # ======================== end testing ====================
+
             s = State()
             s.pl_score = abs(self.draw_card())
             s.dl_score = abs(self.draw_card())
@@ -294,6 +320,7 @@ class Game(object):
             # choose the initial action with e-greedy policy as well
             #a = self.e_greedy_act(s, cnt, n0, q)
             a = e_greedy(s, w)
+            #import ipdb; ipdb.set_trace()
             while not s.terminal:
                 s_prime, r = self.step(s, a)
 
@@ -373,4 +400,4 @@ game = Game()
 #game.monte_carlo_control(10000, 100)
 
 #q = game.sarsa_lambda_control(nepisodes=1000000, n0=100, lmbd=1, q_star=None, mse_prog=True)
-#q = game.sarsa_lambda_control_lfa(nepisodes=10, st_size=0.01, exp_rate=0.05, lmbd=1)
+q = game.sarsa_lambda_control_lfa(nepisodes=20, st_size=0.01, exp_rate=0.05, lmbd=1)
